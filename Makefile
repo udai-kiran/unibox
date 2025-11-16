@@ -3,24 +3,35 @@
 IMAGE_NAME := unibox
 IMAGE_TAG := latest
 FULL_IMAGE := $(IMAGE_NAME):$(IMAGE_TAG)
+USER_UID := $(shell id -u)
+USER_GID := $(shell id -g)
+REGISTRY := docker.io/udaikiran
 
 help:
 	@echo "Available targets:"
-	@echo "  make build       - Build the Docker image"
-	@echo "  make run         - Run container interactively"
-	@echo "  make shell       - Start a shell in the container"
+	@echo "  make build       - Build the Docker image with your UID/GID"
+	@echo "  make run         - Run container interactively (isolated)"
+	@echo "  make shell       - Start a shell in the container (isolated)"
+	@echo "  make run-mount   - Run with host home mounted to /host"
+	@echo "  make shell-mount - Shell with host home mounted to /host"
 	@echo "  make clean       - Remove the Docker image"
 	@echo "  make push        - Push image to registry (set REGISTRY variable)"
 	@echo "  make pull        - Pull image from registry (set REGISTRY variable)"
 
 build:
-	docker build -t $(FULL_IMAGE) .
+	docker build --build-arg USER_UID=$(USER_UID) --build-arg USER_GID=$(USER_GID) -t $(FULL_IMAGE) .
 
 run:
 	docker run --rm -it $(FULL_IMAGE)
 
 shell:
-	docker run --rm -it -v $(PWD):/workspace $(FULL_IMAGE) /bin/bash
+	docker run --rm -it $(FULL_IMAGE) /bin/zsh
+
+run-mount:
+	docker run --rm -it -v $(HOME):/host $(FULL_IMAGE)
+
+shell-mount:
+	docker run --rm -it -v $(HOME):/host $(FULL_IMAGE) /bin/zsh
 
 clean:
 	docker rmi $(FULL_IMAGE)
