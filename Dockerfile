@@ -481,47 +481,23 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
 # Install Powerlevel10k theme for oh-my-zsh
 RUN git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
 
-# Create a default Powerlevel10k configuration (lean style, no prompt)
+# Create a Rainbow Powerlevel10k configuration (matches screenshot)
 RUN echo '# Powerlevel10k instant prompt' > /home/udai/.p10k.zsh \
     && echo 'typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet' >> /home/udai/.p10k.zsh \
-    && echo '' >> /home/udai/.p10k.zsh \
-    && echo '# Lean style configuration' >> /home/udai/.p10k.zsh \
     && echo 'typeset -g POWERLEVEL9K_MODE=nerdfont-complete' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_ICON_PADDING=none' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_BACKGROUND=' >> /home/udai/.p10k.zsh \
-    && echo '' >> /home/udai/.p10k.zsh \
-    && echo '# Left prompt segments' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(' >> /home/udai/.p10k.zsh \
-    && echo '  dir' >> /home/udai/.p10k.zsh \
-    && echo '  vcs' >> /home/udai/.p10k.zsh \
-    && echo '  prompt_char' >> /home/udai/.p10k.zsh \
-    && echo ')' >> /home/udai/.p10k.zsh \
-    && echo '' >> /home/udai/.p10k.zsh \
-    && echo '# Right prompt segments' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(' >> /home/udai/.p10k.zsh \
-    && echo '  status' >> /home/udai/.p10k.zsh \
-    && echo '  command_execution_time' >> /home/udai/.p10k.zsh \
-    && echo '  background_jobs' >> /home/udai/.p10k.zsh \
-    && echo '  context' >> /home/udai/.p10k.zsh \
-    && echo ')' >> /home/udai/.p10k.zsh \
-    && echo '' >> /home/udai/.p10k.zsh \
-    && echo '# Transient prompt (shows minimal prompt after command executes)' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=always' >> /home/udai/.p10k.zsh \
-    && echo '' >> /home/udai/.p10k.zsh \
-    && echo '# Directory settings' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_SHORTEN_STRATEGY=truncate_to_unique' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_DIR_FOREGROUND=31' >> /home/udai/.p10k.zsh \
-    && echo '' >> /home/udai/.p10k.zsh \
-    && echo '# Git (vcs) settings' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_VCS_FOREGROUND=76' >> /home/udai/.p10k.zsh \
-    && echo '' >> /home/udai/.p10k.zsh \
-    && echo '# Prompt character settings' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_PROMPT_CHAR_OK_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=76' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_PROMPT_CHAR_ERROR_{VIINS,VICMD,VIVIS,VIOWR}_FOREGROUND=196' >> /home/udai/.p10k.zsh \
-    && echo '' >> /home/udai/.p10k.zsh \
-    && echo '# Status settings' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_STATUS_OK=false' >> /home/udai/.p10k.zsh \
-    && echo 'typeset -g POWERLEVEL9K_STATUS_ERROR_FOREGROUND=196' >> /home/udai/.p10k.zsh
+    && echo 'typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(os_icon dir vcs)' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status command_execution_time context)' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_PROMPT_ADD_NEWLINE=true' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_OS_ICON_FOREGROUND=255' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_OS_ICON_BACKGROUND=236' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_DIR_FOREGROUND=255' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_DIR_BACKGROUND=4' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_VCS_CLEAN_FOREGROUND=255' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_VCS_CLEAN_BACKGROUND=2' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_VCS_MODIFIED_FOREGROUND=255' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_VCS_MODIFIED_BACKGROUND=3' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_VCS_UNTRACKED_FOREGROUND=255' >> /home/udai/.p10k.zsh \
+    && echo 'typeset -g POWERLEVEL9K_VCS_UNTRACKED_BACKGROUND=2' >> /home/udai/.p10k.zsh
 
 # Install zsh plugins
 RUN git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions \
