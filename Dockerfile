@@ -81,11 +81,6 @@ RUN apt-get update \
     && apt-get install -y podman \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Docker Engine & CLI using official convenience script
-RUN curl -fsSL https://get.docker.com -o /tmp/get-docker.sh \
-    && sh /tmp/get-docker.sh \
-    && rm /tmp/get-docker.sh
-
 # Install Neovim (latest binary from GitHub)
 RUN curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz \
     && rm -rf /opt/nvim-linux-x86_64 \
@@ -219,49 +214,6 @@ RUN export DOCTL_TAG=$(curl --silent "https://api.github.com/repos/digitalocean/
 
 # Install Pulumi (latest version)
 RUN curl -fsSL https://get.pulumi.com | sh
-
-# =============================================================================
-# CONTAINER & DOCKER TOOLS
-# =============================================================================
-
-# Install docker-compose (latest version)
-RUN export COMPOSE_VERSION=$(curl --silent "https://api.github.com/repos/docker/compose/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') \
-    && curl -LO https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64 \
-    && chmod +x docker-compose-linux-x86_64 \
-    && mv docker-compose-linux-x86_64 /usr/local/bin/docker-compose
-
-# Install nerdctl (latest version)
-RUN export NERDCTL_VERSION=$(curl --silent "https://api.github.com/repos/containerd/nerdctl/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') \
-    && curl -LO https://github.com/containerd/nerdctl/releases/download/${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION#v}-linux-amd64.tar.gz \
-    && tar -xzf nerdctl-${NERDCTL_VERSION#v}-linux-amd64.tar.gz \
-    && chmod +x nerdctl \
-    && mv nerdctl /usr/local/bin/ \
-    && rm nerdctl-${NERDCTL_VERSION#v}-linux-amd64.tar.gz
-
-# Install dive (Docker image analysis)
-RUN export DIVE_VERSION=$(curl --silent "https://api.github.com/repos/wagoodman/dive/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') \
-    && curl -LO https://github.com/wagoodman/dive/releases/download/${DIVE_VERSION}/dive_${DIVE_VERSION#v}_linux_amd64.tar.gz \
-    && tar -xzf dive_${DIVE_VERSION#v}_linux_amd64.tar.gz \
-    && chmod +x dive \
-    && mv dive /usr/local/bin/ \
-    && rm dive_${DIVE_VERSION#v}_linux_amd64.tar.gz
-
-# Install ctop (Container monitoring)
-RUN export CTOP_VERSION=$(curl --silent "https://api.github.com/repos/bcicen/ctop/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') \
-    && curl -Lo /usr/local/bin/ctop https://github.com/bcicen/ctop/releases/download/${CTOP_VERSION}/ctop-${CTOP_VERSION#v}-linux-amd64 \
-    && chmod +x /usr/local/bin/ctop
-
-# Install lazydocker (Terminal UI for Docker)
-RUN export LAZYDOCKER_VERSION=$(curl --silent "https://api.github.com/repos/jesseduffield/lazydocker/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') \
-    && curl -sL https://github.com/jesseduffield/lazydocker/releases/download/${LAZYDOCKER_VERSION}/lazydocker_${LAZYDOCKER_VERSION#v}_Linux_x86_64.tar.gz -o /tmp/lazydocker.tar.gz \
-    && tar -C /tmp -xzf /tmp/lazydocker.tar.gz \
-    && mv /tmp/lazydocker /usr/local/bin/ \
-    && chmod +x /usr/local/bin/lazydocker \
-    && rm /tmp/lazydocker.tar.gz
-
-# Install Hadolint (Dockerfile linter)
-RUN wget -O /usr/local/bin/hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 \
-    && chmod +x /usr/local/bin/hadolint
 
 # =============================================================================
 # SECURITY & SECRET MANAGEMENT TOOLS
@@ -413,12 +365,10 @@ RUN curl https://rclone.org/install.sh | bash
 # USER SETUP
 # =============================================================================
 
-# Create user with configurable UID/GID (defaults to 1001)
+# Create user with configurable UID (defaults to 1001)
 ARG USER_UID=1001
-ARG USER_GID=1001
 
-RUN groupadd -g ${USER_GID} udai \
-    && useradd -u ${USER_UID} -g ${USER_GID} -m -s /bin/zsh udai \
+RUN useradd -u ${USER_UID} -m -s /bin/zsh udai \
     && echo "udai ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Copy entrypoint script and make it executable (must be done as root)
@@ -517,7 +467,7 @@ RUN git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-$HO
 
 # Configure .zshrc for Powerlevel10k and plugins
 RUN sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/' /home/udai/.zshrc \
-    && sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting docker kubectl)/' /home/udai/.zshrc
+    && sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting kubectl)/' /home/udai/.zshrc
 
 # Configure shell to load nvm and other tools
 RUN echo 'export NVM_DIR="$HOME/.nvm"' >> /home/udai/.bashrc \
@@ -527,55 +477,8 @@ RUN echo 'export NVM_DIR="$HOME/.nvm"' >> /home/udai/.bashrc \
     && echo 'eval "$(zoxide init bash)"' >> /home/udai/.bashrc \
     && echo 'export PATH="$HOME/.pulumi/bin:$PATH"' >> /home/udai/.bashrc
 
-# Create a helper script to ensure group entries exist (for shell initialization)
-RUN echo '#!/bin/bash' > /home/udai/.ensure-groups.sh \
-    && echo '# Ensure all group IDs have entries in /etc/group' >> /home/udai/.ensure-groups.sh \
-    && echo 'CURRENT_GROUPS=$(id -G 2>/dev/null || echo "")' >> /home/udai/.ensure-groups.sh \
-    && echo 'if [ -n "$CURRENT_GROUPS" ]; then' >> /home/udai/.ensure-groups.sh \
-    && echo '  for GID in $CURRENT_GROUPS; do' >> /home/udai/.ensure-groups.sh \
-    && echo '    if ! getent group "$GID" > /dev/null 2>&1; then' >> /home/udai/.ensure-groups.sh \
-    && echo '      GROUP_NAME="group${GID}"' >> /home/udai/.ensure-groups.sh \
-    && echo '      echo "${GROUP_NAME}:x:${GID}:" | sudo tee -a /etc/group > /dev/null 2>&1 || true' >> /home/udai/.ensure-groups.sh \
-    && echo '    fi' >> /home/udai/.ensure-groups.sh \
-    && echo '  done' >> /home/udai/.ensure-groups.sh \
-    && echo 'fi' >> /home/udai/.ensure-groups.sh \
-    && chmod +x /home/udai/.ensure-groups.sh
-
-# Create a groups wrapper that handles missing group names gracefully
-RUN echo '#!/bin/bash' > /home/udai/.local/bin/groups \
-    && echo '# Wrapper for groups command that handles missing group names' >> /home/udai/.local/bin/groups \
-    && echo '# First, ensure all groups exist' >> /home/udai/.local/bin/groups \
-    && echo '[ -f ~/.ensure-groups.sh ] && source ~/.ensure-groups.sh' >> /home/udai/.local/bin/groups \
-    && echo '# Get group IDs' >> /home/udai/.local/bin/groups \
-    && echo 'GROUP_IDS=$(id -G 2>/dev/null || echo "")' >> /home/udai/.local/bin/groups \
-    && echo 'if [ -z "$GROUP_IDS" ]; then' >> /home/udai/.local/bin/groups \
-    && echo '  exit 0' >> /home/udai/.local/bin/groups \
-    && echo 'fi' >> /home/udai/.local/bin/groups \
-    && echo '# For each GID, get the group name or use the GID' >> /home/udai/.local/bin/groups \
-    && echo 'GROUP_NAMES=""' >> /home/udai/.local/bin/groups \
-    && echo 'for GID in $GROUP_IDS; do' >> /home/udai/.local/bin/groups \
-    && echo '  GROUP_NAME=$(getent group "$GID" 2>/dev/null | cut -d: -f1)' >> /home/udai/.local/bin/groups \
-    && echo '  if [ -z "$GROUP_NAME" ]; then' >> /home/udai/.local/bin/groups \
-    && echo '    # If group name not found, create it and try again' >> /home/udai/.local/bin/groups \
-    && echo '    GROUP_NAME="group${GID}"' >> /home/udai/.local/bin/groups \
-    && echo '    echo "${GROUP_NAME}:x:${GID}:" | sudo tee -a /etc/group > /dev/null 2>&1 || true' >> /home/udai/.local/bin/groups \
-    && echo '    GROUP_NAME=$(getent group "$GID" 2>/dev/null | cut -d: -f1 || echo "group${GID}")' >> /home/udai/.local/bin/groups \
-    && echo '  fi' >> /home/udai/.local/bin/groups \
-    && echo '  if [ -n "$GROUP_NAMES" ]; then' >> /home/udai/.local/bin/groups \
-    && echo '    GROUP_NAMES="${GROUP_NAMES} ${GROUP_NAME}"' >> /home/udai/.local/bin/groups \
-    && echo '  else' >> /home/udai/.local/bin/groups \
-    && echo '    GROUP_NAMES="${GROUP_NAME}"' >> /home/udai/.local/bin/groups \
-    && echo '  fi' >> /home/udai/.local/bin/groups \
-    && echo 'done' >> /home/udai/.local/bin/groups \
-    && echo 'echo "$GROUP_NAMES"' >> /home/udai/.local/bin/groups \
-    && chmod +x /home/udai/.local/bin/groups
-
 # Configure zsh with Powerlevel10k instant prompt and tools
-# Run ensure-groups FIRST, before anything else that might call groups
-RUN echo '# Ensure group entries exist FIRST (fixes "groups: cannot find name" error)' >> /home/udai/.zshrc \
-    && echo '[ -f ~/.ensure-groups.sh ] && source ~/.ensure-groups.sh 2>/dev/null || true' >> /home/udai/.zshrc \
-    && echo '' >> /home/udai/.zshrc \
-    && echo '# Enable Powerlevel10k instant prompt' >> /home/udai/.zshrc \
+RUN echo '# Enable Powerlevel10k instant prompt' >> /home/udai/.zshrc \
     && echo 'if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then' >> /home/udai/.zshrc \
     && echo '  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"' >> /home/udai/.zshrc \
     && echo 'fi' >> /home/udai/.zshrc \
@@ -588,10 +491,6 @@ RUN echo '# Ensure group entries exist FIRST (fixes "groups: cannot find name" e
     && echo '' >> /home/udai/.zshrc \
     && echo '# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.' >> /home/udai/.zshrc \
     && echo '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> /home/udai/.zshrc
-
-# Configure bash to also ensure groups - run FIRST before anything else
-RUN echo '# Ensure group entries exist FIRST (fixes "groups: cannot find name" error)' >> /home/udai/.bashrc \
-    && echo '[ -f ~/.ensure-groups.sh ] && source ~/.ensure-groups.sh 2>/dev/null || true' >> /home/udai/.bashrc
 
 # Set entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
