@@ -41,7 +41,7 @@ jobs:
           images: ${{ env.DOCKER_IMAGE }}
           tags: |
             # Tag as "latest" for main/master branch pushes only
-            type=raw,value=latest,enable=${{ github.ref_type == 'branch' && is_default_branch }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'branch' && (github.ref_name == 'main' || github.ref_name == 'master') }}
             # Tag with exact version for git tags (e.g., v1.0.0 -> 1.0.0)
             type=semver,pattern={{version}}
             # Tag with branch name for branch pushes
