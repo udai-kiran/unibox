@@ -492,8 +492,6 @@ RUN echo '# Enable Powerlevel10k instant prompt' >> /home/udai/.zshrc \
     && echo '# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.' >> /home/udai/.zshrc \
     && echo '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> /home/udai/.zshrc
 
-# Set entrypoint
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Default command
 CMD ["/bin/zsh"]
