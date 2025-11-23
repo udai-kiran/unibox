@@ -421,6 +421,10 @@ RUN groupadd -g ${USER_GID} udai \
     && useradd -u ${USER_UID} -g ${USER_GID} -m -s /bin/zsh udai \
     && echo "udai ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
+# Copy entrypoint script and make it executable (must be done as root)
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Switch to non-root user
 USER udai
 
@@ -456,6 +460,14 @@ ENV PATH="/home/udai/.cargo/bin:/home/udai/.local/bin:/home/udai/.pulumi/bin:${P
 # Install tldr, yarn, and pnpm (via npm after nvm is available)
 RUN . "$NVM_DIR/nvm.sh" \
     && npm install -g tldr yarn pnpm
+
+# Install Claude Code CLI (Anthropic SDK)
+RUN . "$NVM_DIR/nvm.sh" \
+    && npm install -g @anthropic-ai/sdk @anthropic-ai/claude-code@latest || true
+
+# Install Cursor Agent CLI
+RUN curl -fsSL https://cursor.com/install | bash || \
+    curl -fsSL https://cursor.sh/install.sh | bash || true
 
 # Install Poetry (Python dependency management)
 RUN curl -sSL https://install.python-poetry.org | python3 -
@@ -515,8 +527,55 @@ RUN echo 'export NVM_DIR="$HOME/.nvm"' >> /home/udai/.bashrc \
     && echo 'eval "$(zoxide init bash)"' >> /home/udai/.bashrc \
     && echo 'export PATH="$HOME/.pulumi/bin:$PATH"' >> /home/udai/.bashrc
 
+# Create a helper script to ensure group entries exist (for shell initialization)
+RUN echo '#!/bin/bash' > /home/udai/.ensure-groups.sh \
+    && echo '# Ensure all group IDs have entries in /etc/group' >> /home/udai/.ensure-groups.sh \
+    && echo 'CURRENT_GROUPS=$(id -G 2>/dev/null || echo "")' >> /home/udai/.ensure-groups.sh \
+    && echo 'if [ -n "$CURRENT_GROUPS" ]; then' >> /home/udai/.ensure-groups.sh \
+    && echo '  for GID in $CURRENT_GROUPS; do' >> /home/udai/.ensure-groups.sh \
+    && echo '    if ! getent group "$GID" > /dev/null 2>&1; then' >> /home/udai/.ensure-groups.sh \
+    && echo '      GROUP_NAME="group${GID}"' >> /home/udai/.ensure-groups.sh \
+    && echo '      echo "${GROUP_NAME}:x:${GID}:" | sudo tee -a /etc/group > /dev/null 2>&1 || true' >> /home/udai/.ensure-groups.sh \
+    && echo '    fi' >> /home/udai/.ensure-groups.sh \
+    && echo '  done' >> /home/udai/.ensure-groups.sh \
+    && echo 'fi' >> /home/udai/.ensure-groups.sh \
+    && chmod +x /home/udai/.ensure-groups.sh
+
+# Create a groups wrapper that handles missing group names gracefully
+RUN echo '#!/bin/bash' > /home/udai/.local/bin/groups \
+    && echo '# Wrapper for groups command that handles missing group names' >> /home/udai/.local/bin/groups \
+    && echo '# First, ensure all groups exist' >> /home/udai/.local/bin/groups \
+    && echo '[ -f ~/.ensure-groups.sh ] && source ~/.ensure-groups.sh' >> /home/udai/.local/bin/groups \
+    && echo '# Get group IDs' >> /home/udai/.local/bin/groups \
+    && echo 'GROUP_IDS=$(id -G 2>/dev/null || echo "")' >> /home/udai/.local/bin/groups \
+    && echo 'if [ -z "$GROUP_IDS" ]; then' >> /home/udai/.local/bin/groups \
+    && echo '  exit 0' >> /home/udai/.local/bin/groups \
+    && echo 'fi' >> /home/udai/.local/bin/groups \
+    && echo '# For each GID, get the group name or use the GID' >> /home/udai/.local/bin/groups \
+    && echo 'GROUP_NAMES=""' >> /home/udai/.local/bin/groups \
+    && echo 'for GID in $GROUP_IDS; do' >> /home/udai/.local/bin/groups \
+    && echo '  GROUP_NAME=$(getent group "$GID" 2>/dev/null | cut -d: -f1)' >> /home/udai/.local/bin/groups \
+    && echo '  if [ -z "$GROUP_NAME" ]; then' >> /home/udai/.local/bin/groups \
+    && echo '    # If group name not found, create it and try again' >> /home/udai/.local/bin/groups \
+    && echo '    GROUP_NAME="group${GID}"' >> /home/udai/.local/bin/groups \
+    && echo '    echo "${GROUP_NAME}:x:${GID}:" | sudo tee -a /etc/group > /dev/null 2>&1 || true' >> /home/udai/.local/bin/groups \
+    && echo '    GROUP_NAME=$(getent group "$GID" 2>/dev/null | cut -d: -f1 || echo "group${GID}")' >> /home/udai/.local/bin/groups \
+    && echo '  fi' >> /home/udai/.local/bin/groups \
+    && echo '  if [ -n "$GROUP_NAMES" ]; then' >> /home/udai/.local/bin/groups \
+    && echo '    GROUP_NAMES="${GROUP_NAMES} ${GROUP_NAME}"' >> /home/udai/.local/bin/groups \
+    && echo '  else' >> /home/udai/.local/bin/groups \
+    && echo '    GROUP_NAMES="${GROUP_NAME}"' >> /home/udai/.local/bin/groups \
+    && echo '  fi' >> /home/udai/.local/bin/groups \
+    && echo 'done' >> /home/udai/.local/bin/groups \
+    && echo 'echo "$GROUP_NAMES"' >> /home/udai/.local/bin/groups \
+    && chmod +x /home/udai/.local/bin/groups
+
 # Configure zsh with Powerlevel10k instant prompt and tools
-RUN echo '# Enable Powerlevel10k instant prompt' >> /home/udai/.zshrc \
+# Run ensure-groups FIRST, before anything else that might call groups
+RUN echo '# Ensure group entries exist FIRST (fixes "groups: cannot find name" error)' >> /home/udai/.zshrc \
+    && echo '[ -f ~/.ensure-groups.sh ] && source ~/.ensure-groups.sh 2>/dev/null || true' >> /home/udai/.zshrc \
+    && echo '' >> /home/udai/.zshrc \
+    && echo '# Enable Powerlevel10k instant prompt' >> /home/udai/.zshrc \
     && echo 'if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then' >> /home/udai/.zshrc \
     && echo '  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"' >> /home/udai/.zshrc \
     && echo 'fi' >> /home/udai/.zshrc \
@@ -529,6 +588,13 @@ RUN echo '# Enable Powerlevel10k instant prompt' >> /home/udai/.zshrc \
     && echo '' >> /home/udai/.zshrc \
     && echo '# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.' >> /home/udai/.zshrc \
     && echo '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> /home/udai/.zshrc
+
+# Configure bash to also ensure groups - run FIRST before anything else
+RUN echo '# Ensure group entries exist FIRST (fixes "groups: cannot find name" error)' >> /home/udai/.bashrc \
+    && echo '[ -f ~/.ensure-groups.sh ] && source ~/.ensure-groups.sh 2>/dev/null || true' >> /home/udai/.bashrc
+
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Default command
 CMD ["/bin/zsh"]
