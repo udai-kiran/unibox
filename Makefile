@@ -1,8 +1,9 @@
 .PHONY: build run shell clean push pull help
 
+DOCKER_USERNAME := udaikiran
 IMAGE_NAME := unibox
 IMAGE_TAG := latest
-FULL_IMAGE := $(IMAGE_NAME):$(IMAGE_TAG)
+FULL_IMAGE := $(DOCKER_USERNAME)/$(IMAGE_NAME):$(IMAGE_TAG)
 USER_UID := $(shell id -u)
 USER_GID := $(shell id -g)
 REGISTRY := docker.io/udaikiran

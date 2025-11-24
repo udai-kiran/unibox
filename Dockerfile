@@ -44,6 +44,11 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Verify zsh is installed and ensure it's accessible at /bin/zsh
+RUN ZSH_PATH=$(which zsh) \
+    && zsh --version \
+    && [ -f /bin/zsh ] || ln -sf "$ZSH_PATH" /bin/zsh
+
 # Add deadsnakes PPA and install Python 3.14
 RUN add-apt-repository ppa:deadsnakes/ppa -y \
     && apt-get update \
@@ -74,11 +79,6 @@ RUN wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | apt-ke
     && echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | tee -a /etc/apt/sources.list.d/trivy.list \
     && apt-get update \
     && apt-get install -y trivy \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install podman - requires apt
-RUN apt-get update \
-    && apt-get install -y podman \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Neovim (latest binary from GitHub)
@@ -492,6 +492,7 @@ RUN echo '# Enable Powerlevel10k instant prompt' >> /home/udai/.zshrc \
     && echo '# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.' >> /home/udai/.zshrc \
     && echo '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> /home/udai/.zshrc
 
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Default command
 CMD ["/bin/zsh"]
