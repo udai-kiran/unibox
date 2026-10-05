@@ -6,9 +6,11 @@ A comprehensive development container image with all the essential tools for mod
 ## 🚀 Quick Start
 
 ```bash
-docker build -t unibox .
-docker run -it unibox
+make build          # builds with your host UID/GID so mounted files keep their owner
+make run
 ```
+
+Or without make: `docker build -t udaikiran/unibox:latest .` and `docker run -it udaikiran/unibox:latest`.
 
 ## 📦 Included Tools
 
@@ -28,7 +30,6 @@ docker run -it unibox
 - **Helm** - Kubernetes package manager
 - **kubectx/kubens** - Context and namespace switching
 - **stern** - Multi-pod log tailing
-- **kubectl-debug** - Debug pods with an ephemeral container
 - **Kustomize** - Kubernetes-native configuration management
 - **Skaffold** - Continuous development for Kubernetes
 - **Argo CD CLI** - GitOps continuous delivery CLI
@@ -61,6 +62,7 @@ docker run -it unibox
 - **mdcat** - Syntax-highlighted Markdown viewer for the terminal
 - **tree** - Directory tree viewer
 - **colordiff** - Colorized diff output
+- **Act** - Run GitHub Actions locally
 
 ### 🔧 Git Tools
 
@@ -69,17 +71,16 @@ docker run -it unibox
 - **git-delta** - Syntax-highlighting pager for Git
 - **git-credential-manager** - Secure Git credential storage
 
-### 🐳 Container Tools
+### 🤖 AI Coding Agents
 
-- **Docker CLI** - Docker command-line interface
-- **docker-compose** - Multi-container Docker applications
-- **podman** - Docker alternative container engine
-- **nerdctl** - Containerd CLI
-- **dive** - Docker image analysis tool
-- **ctop** - Top-like interface for containers
-- **lazydocker** - Terminal UI for Docker and docker-compose
-- **Hadolint** - Dockerfile linter
-- **Act** - Run GitHub Actions locally
+- **Claude Code** (`claude`) - Anthropic's agentic coding CLI
+- **OpenAI Codex CLI** (`codex`) - OpenAI's agentic coding CLI
+
+No credentials are baked into the image. Log in inside the container, or mount your existing config:
+
+```bash
+docker run --rm -it -v ~/.claude:/home/udai/.claude -v ~/.codex:/home/udai/.codex udaikiran/unibox:latest
+```
 
 ### 🖥️ Shell & Terminal Tools
 
@@ -91,7 +92,6 @@ docker run -it unibox
 - **zoxide** - Smarter cd command
 - **lsd** - Modern `ls` replacement with icons and colors
 - **mcfly** - Shell history search with context
-- **atuin** - Encrypted, syncable shell history
 
 ### 📊 Monitoring & Debugging
 
@@ -115,7 +115,6 @@ docker run -it unibox
 - **age** - Encryption tool
 - **gitleaks** - Secret scanning for Git repositories
 - **Trivy** - Vulnerability and misconfiguration scanner
-- **Hadolint** - Dockerfile linter
 
 ### ☁️ Storage, Sync & Utilities
 
@@ -128,7 +127,7 @@ docker run -it unibox
 
 ## 🏃 Usage
 
-The container runs as user `udai` (UID 1001) with sudo privileges. All tools are pre-configured and available in your PATH.
+The container runs as user `udai` with sudo privileges. UID and GID default to 1001; `make build` passes your host UID/GID instead (`--build-arg USER_UID=... --build-arg USER_GID=...`). Tools are on `PATH` in every shell, except the nvm-managed Node.js tools (see Notes).
 
 ### Example: Using Kubernetes tools
 
@@ -154,19 +153,21 @@ doctl compute droplet list
 terraform init
 pulumi new
 trivy image python:3.12
-hadolint Dockerfile
 ```
 
 ## 🔄 Keeping Tools Updated
 
-All tools are configured to install the latest stable versions automatically. To update:
+Most tools install their latest stable release at build time. Docker caches each build step, so a plain rebuild reuses the old layers and updates nothing. To actually update:
 
-1. Rebuild the Docker image
-2. Tools will fetch their latest releases during build
+```bash
+docker build --no-cache --build-arg USER_UID="$(id -u)" --build-arg USER_GID="$(id -g)" -t udaikiran/unibox:latest .
+```
+
+The build ends with a smoke test (`scripts/smoke-test.sh`) that fails if an expected tool is missing from `PATH`.
 
 ## 📝 Notes
 
 - The image is based on Ubuntu 22.04
-- All tools are installed system-wide (accessible to all users)
+- Most tools are installed system-wide; uv, Node.js (nvm), Rust, Poetry, Pulumi, starship, zoxide and Claude Code live in `/home/udai`
 - Shell configurations are set up for both bash and zsh
-- Node.js is managed via nvm and loads automatically in new shell sessions
+- Node.js is managed via nvm, so `node`, `npm`, `yarn`, `pnpm` and `tldr` are only on `PATH` in shells that load nvm (interactive zsh/bash)

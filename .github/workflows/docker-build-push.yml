@@ -14,7 +14,8 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/unibox
+  # Secrets are empty on pull requests from forks; fall back so the tag stays valid.
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME || 'local' }}/unibox
 
 jobs:
   build-and-push:
@@ -50,6 +51,7 @@ jobs:
             type=ref,event=pr
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
