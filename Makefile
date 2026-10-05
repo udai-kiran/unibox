@@ -1,4 +1,4 @@
-.PHONY: build run shell clean push pull help
+.PHONY: build run shell run-mount shell-mount clean push pull help
 
 DOCKER_USERNAME := udaikiran
 IMAGE_NAME := unibox
@@ -6,7 +6,7 @@ IMAGE_TAG := latest
 FULL_IMAGE := $(DOCKER_USERNAME)/$(IMAGE_NAME):$(IMAGE_TAG)
 USER_UID := $(shell id -u)
 USER_GID := $(shell id -g)
-REGISTRY := docker.io/udaikiran
+REGISTRY ?= docker.io
 
 help:
 	@echo "Available targets:"
@@ -16,8 +16,8 @@ help:
 	@echo "  make run-mount   - Run with host home mounted to /host"
 	@echo "  make shell-mount - Shell with host home mounted to /host"
 	@echo "  make clean       - Remove the Docker image"
-	@echo "  make push        - Push image to registry (set REGISTRY variable)"
-	@echo "  make pull        - Pull image from registry (set REGISTRY variable)"
+	@echo "  make push        - Push image to registry (REGISTRY defaults to docker.io)"
+	@echo "  make pull        - Pull image from registry (REGISTRY defaults to docker.io)"
 
 build:
 	docker build --build-arg USER_UID=$(USER_UID) --build-arg USER_GID=$(USER_GID) -t $(FULL_IMAGE) .
@@ -39,7 +39,7 @@ clean:
 
 push:
 	@if [ -z "$(REGISTRY)" ]; then \
-		echo "Error: REGISTRY not set. Usage: make push REGISTRY=your-registry.com/username"; \
+		echo "Error: REGISTRY not set. Usage: make push REGISTRY=your-registry.com"; \
 		exit 1; \
 	fi
 	docker tag $(FULL_IMAGE) $(REGISTRY)/$(FULL_IMAGE)
@@ -47,7 +47,7 @@ push:
 
 pull:
 	@if [ -z "$(REGISTRY)" ]; then \
-		echo "Error: REGISTRY not set. Usage: make pull REGISTRY=your-registry.com/username"; \
+		echo "Error: REGISTRY not set. Usage: make pull REGISTRY=your-registry.com"; \
 		exit 1; \
 	fi
 	docker pull $(REGISTRY)/$(FULL_IMAGE)
